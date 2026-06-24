@@ -1,0 +1,23 @@
+import { z } from 'zod';
+import { createEndpoint } from 'zite-integrations-backend-sdk';
+
+export default createEndpoint({
+  description: 'Translates text using MyMemory Translation API',
+  inputSchema: z.object({
+    text: z.string().min(1),
+    sourceLang: z.string(),
+    targetLang: z.string(),
+  }),
+  outputSchema: z.object({
+    translatedText: z.string(),
+  }),
+  execute: async ({ input }) => {
+    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(input.text)}&langpair=${input.sourceLang}|${input.targetLang}`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      throw new Error('Translation service unavailable');
+    }
+    const data = await res.json() as { responseData: { translatedText: string } };
+    return { translatedText: data.responseData.translatedText };
+  },
+});

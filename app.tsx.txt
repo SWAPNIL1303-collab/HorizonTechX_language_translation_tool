@@ -1,0 +1,185 @@
+import { useState, useCallback } from 'react';
+import { translate } from 'zite-endpoints-sdk';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Toaster } from '@/components/ui/sonner';
+import { toast } from 'sonner';
+import { ArrowRightLeft, Copy, Volume2, Loader2, Languages, Eraser } from 'lucide-react';
+
+const LANGUAGES = [
+  { code: 'en', name: 'English' },
+  { code: 'es', name: 'Spanish' },
+  { code: 'fr', name: 'French' },
+  { code: 'de', name: 'German' },
+  { code: 'hi', name: 'Hindi' },
+  { code: 'zh', name: 'Chinese' },
+  { code: 'ar', name: 'Arabic' },
+];
+
+export default function App() {
+  const [sourceText, setSourceText] = useState('');
+  const [translatedText, setTranslatedText] = useState('');
+  const [sourceLang, setSourceLang] = useState('en');
+  const [targetLang, setTargetLang] = useState('es');
+  const [loading, setLoading] = useState(false);
+
+  const handleTranslate = useCallback(async () => {
+    if (!sourceText.trim()) return;
+    setLoading(true);
+    try {
+      const result = await translate({ text: sourceText, sourceLang, targetLang });
+      setTranslatedText(result.translatedText);
+    } catch {
+      toast.error('Translation failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, [sourceText, sourceLang, targetLang]);
+
+  const handleSwapLanguages = () => {
+    setSourceLang(targetLang);
+    setTargetLang(sourceLang);
+    setSourceText(translatedText);
+    setTranslatedText(sourceText);
+  };
+
+  const handleCopy = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success('Copied to clipboard');
+  };
+
+  const handleSpeak = (text: string, lang: string) => {
+    if (!text) return;
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = lang;
+    utterance.rate = 0.9;
+    speechSynthesis.cancel();
+    speechSynthesis.speak(utterance);
+  };
+
+  const handleClear = () => {
+    setSourceText('');
+    setTranslatedText('');
+  };
+
+  const charCount = sourceText.length;
+
+  return (
+    <div className="min-h-screen bg-background">
+      <Toaster />
+
+      {/* Header */}
+      <header className="border-b border-border bg-card">
+        <div className="container mx-auto px-4 py-4 flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center">
+            <Languages className="h-5 w-5 text-primary-foreground" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-foreground">Translator</h1>
+            <p className="text-xs text-muted-foreground">Translate text between 25+ languages</p>
+          </div>
+        </div>
+      </header>
+
+      <main className="container mx-auto px-4 py-8 max-w-4xl">
+        {/* Language selectors */}
+        <div className="flex items-center gap-3 mb-4">
+          <LanguageSelector value={sourceLang} onChange={setSourceLang} label="From" />
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleSwapLanguages}
+            className="mt-5 shrink-0 rounded-full hover:bg-primary/10"
+          >
+            <ArrowRightLeft className="h-4 w-4 text-primary" />
+          </Button>
+          <LanguageSelector value={targetLang} onChange={setTargetLang} label="To" />
+        </div>
+
+        {/* Text areas */}
+        <div className="grid md:grid-cols-2 gap-4">
+          {/* Source */}
+          <div className="rounded-xl border border-border bg-card overflow-hidden">
+            <Textarea
+              value={sourceText}
+              onChange={(e) => setSourceText(e.target.value)}
+              placeholder="Enter text to translate..."
+              className="min-h-[200px] border-0 rounded-none resize-none focus-visible:ring-0 text-base"
+            />
+            <div className="flex items-center justify-between px-3 py-2 border-t border-border bg-muted/30">
+              <span className="text-xs text-muted-foreground">{charCount} characters</span>
+              <div className="flex gap-1">
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleSpeak(sourceText, sourceLang)} disabled={!sourceText}>
+                  <Volume2 className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleCopy(sourceText)} disabled={!sourceText}>
+                  <Copy className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleClear} disabled={!sourceText}>
+                  <Eraser className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Result */}
+          <div className="rounded-xl border border-border bg-card overflow-hidden">
+            <div className="min-h-[200px] p-3 text-base">
+              {loading ? (
+                <div className="flex items-center justify-center h-full min-h-[180px]">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </div>
+              ) : translatedText ? (
+                <p className="text-foreground whitespace-pre-wrap">{translatedText}</p>
+              ) : (
+                <p className="text-muted-foreground">Translation will appear here...</p>
+              )}
+            </div>
+            <div className="flex items-center justify-end px-3 py-2 border-t border-border bg-muted/30">
+              <div className="flex gap-1">
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleSpeak(translatedText, targetLang)} disabled={!translatedText}>
+                  <Volume2 className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleCopy(translatedText)} disabled={!translatedText}>
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Translate button */}
+        <div className="flex justify-center mt-6">
+          <Button
+            onClick={handleTranslate}
+            disabled={loading || !sourceText.trim()}
+            size="lg"
+            className="px-10 rounded-full text-base font-semibold"
+          >
+            {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+            Translate
+          </Button>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+function LanguageSelector({ value, onChange, label }: { value: string; onChange: (v: string) => void; label: string }) {
+  return (
+    <div className="flex-1">
+      <label className="text-xs font-medium text-muted-foreground mb-1 block">{label}</label>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger className="bg-card">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {LANGUAGES.map((lang) => (
+            <SelectItem key={lang.code} value={lang.code}>{lang.name}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
